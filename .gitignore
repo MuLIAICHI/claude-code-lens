@@ -1,0 +1,27 @@
+# Node / build
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+
+# Secrets
+.env
+.env.*
+
+# Supply-chain gate marker (local only)
+.claude/pin-guard.ok
+
+# ay-framework (build engine — local only, not part of the OSS deliverable).
+# Renders in ay-os from the filesystem, so it never needs to be in git.
+# Root-anchored: ignore THIS repo's operational .ay/, but NOT fixture .ay/
+# trees under fixtures/ (those would be golden test data and must be committed).
+/.ay/
+.ay/locks/
+.ay/sessions/
+.claude/CLAUDE-*.md
+.claude/commands/
+.claude/agents/
+.claude/skills/
+.claude/hooks/
+.claude/settings.json
