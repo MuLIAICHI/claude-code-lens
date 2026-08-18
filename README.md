@@ -19,6 +19,17 @@ across files and buried under tool payloads. Lens turns that into:
   values, JWTs, private-key blocks, and URL passwords are masked in the rendered
   view with a per-session reveal toggle, so you can spot a key you once pasted.
 
+## Screenshots
+
+The chat-style session view, with display-layer secret redaction (demo data —
+every "secret" below is a planted fake from the test fixtures):
+
+![Session detail with redacted secrets](docs/screenshots/session-detail-redaction.jpg)
+
+Sessions grouped by project, sortable by date, duration, or messages:
+
+![Session list](docs/screenshots/session-list.jpg)
+
 ## Privacy guarantees (tested)
 
 | Guarantee | How it is enforced |
