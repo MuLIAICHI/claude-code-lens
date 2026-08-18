@@ -8,6 +8,7 @@
 
 import { el, fmtDate, fmtDuration, fmtNum, projectName, type SessionDetail, type TurnRow } from './ui.ts';
 import { diffLines, extractEdits } from './diff.ts';
+import { detectSecrets } from '../../src/redact/detect.ts';
 
 /** Truncation cap for a rendered payload body (characters). */
 const MAX_PAYLOAD_CHARS = 200_000;
@@ -30,13 +31,40 @@ function prettyJson(content: string): string {
   }
 }
 
-/** A <pre> holding payload text, truncated past {@link MAX_PAYLOAD_CHARS}. */
+/** One masked segment: chip shown by default, original shown under body.reveal. */
+function redactedSpan(label: string, original: string): HTMLElement {
+  const wrap = el('span', 'redacted');
+  wrap.append(el('span', 'mask', `●●● ${label}`), el('span', 'orig', original));
+  return wrap;
+}
+
+/**
+ * Append `text` to `parent` with secret spans masked (display-layer redaction,
+ * task 5). Plain segments become text nodes; detected spans become .redacted
+ * elements. Everything is set via textContent — XSS posture unchanged.
+ */
+function appendRedacted(parent: HTMLElement, text: string): void {
+  const spans = detectSecrets(text);
+  if (spans.length === 0) {
+    parent.append(document.createTextNode(text));
+    return;
+  }
+  let cursor = 0;
+  for (const s of spans) {
+    if (s.start > cursor) parent.append(document.createTextNode(text.slice(cursor, s.start)));
+    parent.append(redactedSpan(s.label, text.slice(s.start, s.end)));
+    cursor = s.end;
+  }
+  if (cursor < text.length) parent.append(document.createTextNode(text.slice(cursor)));
+}
+
+/** A <pre> holding payload text (redacted), truncated past {@link MAX_PAYLOAD_CHARS}. */
 function payloadPre(text: string, className: string): HTMLElement {
   const pre = el('pre', className);
   if (text.length > MAX_PAYLOAD_CHARS) {
-    pre.textContent = `${text.slice(0, MAX_PAYLOAD_CHARS)}\n… truncated (${fmtNum(text.length)} chars total)`;
+    appendRedacted(pre, `${text.slice(0, MAX_PAYLOAD_CHARS)}\n… truncated (${fmtNum(text.length)} chars total)`);
   } else {
-    pre.textContent = text;
+    appendRedacted(pre, text);
   }
   return pre;
 }
@@ -48,7 +76,10 @@ function renderDiff(filePath: string, oldStr: string, newStr: string): HTMLEleme
   const pre = el('pre', 'diff');
   for (const op of diffLines(oldStr, newStr)) {
     const prefix = op.kind === 'add' ? '+ ' : op.kind === 'del' ? '- ' : '  ';
-    pre.append(el('div', `line ${op.kind}`, prefix + op.text));
+    const line = el('div', `line ${op.kind}`);
+    line.append(document.createTextNode(prefix));
+    appendRedacted(line, op.text);
+    pre.append(line);
   }
   wrap.append(pre);
   return wrap;
@@ -70,7 +101,9 @@ function renderTool(turn: TurnRow): HTMLElement {
   const summary = el('summary');
   const label = turn.type === 'tool_use' ? (turn.tool_name ?? 'tool') : 'result';
   summary.append(el('span', 'tool-badge', label));
-  summary.append(el('span', 'tool-preview', preview(turn.content)));
+  const previewEl = el('span', 'tool-preview');
+  appendRedacted(previewEl, preview(turn.content));
+  summary.append(previewEl);
   details.append(summary);
 
   const body = el('div', 'tool-body');
@@ -95,21 +128,43 @@ function renderTurn(turn: TurnRow): HTMLElement {
     if (turn.content.trim() === '') return el('div', 'thinking-empty', '∴ thinking (not recorded)');
     const msg = el('div', 'msg thinking');
     msg.append(el('div', 'msg-label', 'thinking'));
-    msg.append(el('div', 'bubble', turn.content));
+    const bubble = el('div', 'bubble');
+    appendRedacted(bubble, turn.content);
+    msg.append(bubble);
     return msg;
   }
   const msg = el('div', `msg ${turn.role}`);
-  msg.append(el('div', 'bubble', turn.content));
+  const bubble = el('div', 'bubble');
+  appendRedacted(bubble, turn.content);
+  msg.append(bubble);
   return msg;
 }
 
+/** The reveal toggle: flips body.reveal and its own label. */
+function revealButton(secretCount: number): HTMLElement {
+  const btn = el('button', 'reveal-btn') as HTMLButtonElement;
+  const setLabel = (): void => {
+    const revealed = document.body.classList.contains('reveal');
+    btn.textContent = revealed
+      ? `hide ${secretCount} potential secret${secretCount === 1 ? '' : 's'}`
+      : `⚠ reveal ${secretCount} potential secret${secretCount === 1 ? '' : 's'}`;
+  };
+  btn.addEventListener('click', () => {
+    document.body.classList.toggle('reveal');
+    setLabel();
+  });
+  setLabel();
+  return btn;
+}
+
 /** Detail header: back link, title, project, meta chips (tokens kept split). */
-function renderHeader(detail: SessionDetail): HTMLElement {
+function renderHeader(detail: SessionDetail, secretCount: number): HTMLElement {
   const s = detail.session;
   const head = el('div', 'detail-head');
   const back = el('a', 'back', '← All sessions') as HTMLAnchorElement;
   back.href = '#/';
   head.append(back);
+  if (secretCount > 0) head.append(revealButton(secretCount));
   head.append(el('h2', 'detail-title', s.title ?? s.id));
   const sub = el('div', 'detail-sub', s.project_path);
   sub.title = s.project_path;
@@ -129,6 +184,7 @@ function renderHeader(detail: SessionDetail): HTMLElement {
 
 /** Fetch and render the detail view for one session into `app`. */
 export async function renderDetail(app: HTMLElement, id: string): Promise<void> {
+  document.body.classList.remove('reveal'); // masking is the default per session view
   app.replaceChildren(el('p', 'status', 'Loading session…'));
   document.title = `Lens — ${projectName(id)}`;
   try {
@@ -138,9 +194,12 @@ export async function renderDetail(app: HTMLElement, id: string): Promise<void> 
       return;
     }
     const detail = (await res.json()) as SessionDetail;
+    // Total across ALL turns (lazy tool bodies included) so the count is stable.
+    let secretCount = 0;
+    for (const turn of detail.turns) secretCount += detectSecrets(turn.content).length;
     const convo = el('div', 'convo');
     for (const turn of detail.turns) convo.append(renderTurn(turn));
-    app.replaceChildren(renderHeader(detail), convo);
+    app.replaceChildren(renderHeader(detail, secretCount), convo);
     document.title = `Lens — ${detail.session.title ?? detail.session.id}`;
   } catch (err) {
     app.replaceChildren(el('p', 'status error', `Failed to load session: ${(err as Error).message}`));
