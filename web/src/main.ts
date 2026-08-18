@@ -1,76 +1,19 @@
 /**
- * Session list frontend. Fetches the same-origin /api/sessions endpoint and
- * renders sessions grouped by project, with sort controls. No external calls.
+ * Frontend entry: hash router over two views — the session list (`#/`) and the
+ * session detail (`#/session/:id`). Fetches same-origin APIs only; no external
+ * calls. All data rendering goes through textContent (XSS-safe).
  */
 
-// Minimal shapes mirroring the server's SessionListItem / ProjectGroup. Kept
-// local so the web build does not couple to the server tsconfig.
-interface TokenUsage {
-  input: number;
-  output: number;
-  cache_creation: number;
-  cache_read: number;
-}
-interface SessionItem {
-  id: string;
-  project_path: string;
-  started_at: string;
-  ended_at: string;
-  turn_count: number;
-  record_count: number;
-  tokens: TokenUsage;
-  git_branch: string | null;
-  title: string | null;
-  duration_ms: number;
-}
-interface ProjectGroup {
-  project_path: string;
-  sessions: SessionItem[];
-}
+import { el, fmtDate, fmtDuration, fmtNum, projectName, type ProjectGroup, type SessionItem } from './ui.ts';
+import { renderDetail } from './detail.ts';
 
 const app = document.getElementById('app') as HTMLElement;
 const sortBy = document.getElementById('sortBy') as HTMLSelectElement;
 const order = document.getElementById('order') as HTMLSelectElement;
 
-/** Human-readable duration from milliseconds. */
-function fmtDuration(ms: number): string {
-  if (ms <= 0) return '—';
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-/** Compact integer (12,345 → 12.3k). */
-function fmtNum(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
-
-/** Short local date. */
-function fmtDate(iso: string): string {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '';
-  return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-/** Last path segment of a project path, for a compact heading. */
-function projectName(path: string): string {
-  const parts = path.split('/').filter(Boolean);
-  return parts[parts.length - 1] ?? path;
-}
-
-function el(tag: string, className?: string, text?: string): HTMLElement {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
 function renderSession(s: SessionItem): HTMLElement {
-  const row = el('div', 'session');
+  const row = el('a', 'session') as HTMLAnchorElement;
+  row.href = `#/session/${encodeURIComponent(s.id)}`;
   const title = el('div', 'session-title', s.title ?? s.id.slice(0, 8));
   const meta = el('div', 'session-meta');
   meta.append(
@@ -104,7 +47,9 @@ function renderGroups(groups: ProjectGroup[]): void {
   }
 }
 
-async function load(): Promise<void> {
+/** Fetch and render the session list view. */
+async function renderList(): Promise<void> {
+  document.title = 'Lens for Claude Code';
   app.replaceChildren(el('p', 'status', 'Loading…'));
   try {
     const res = await fetch(`/api/sessions?group=1&sortBy=${sortBy.value}&order=${order.value}`);
@@ -115,6 +60,28 @@ async function load(): Promise<void> {
   }
 }
 
-sortBy.addEventListener('change', () => void load());
-order.addEventListener('change', () => void load());
-void load();
+/** Decode a hash segment; malformed percent-encoding falls back to the raw text. */
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/** Route on the current hash: `#/session/:id` → detail, anything else → list. */
+function route(): void {
+  const match = /^#\/session\/(.+)$/.exec(location.hash);
+  if (match?.[1] !== undefined) {
+    document.body.classList.add('detail');
+    void renderDetail(app, safeDecode(match[1]));
+  } else {
+    document.body.classList.remove('detail');
+    void renderList();
+  }
+}
+
+sortBy.addEventListener('change', () => void renderList());
+order.addEventListener('change', () => void renderList());
+window.addEventListener('hashchange', route);
+route();

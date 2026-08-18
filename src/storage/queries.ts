@@ -5,7 +5,7 @@
  */
 
 import type { LensIndex } from './db.ts';
-import type { ListOptions, ProjectGroup, SessionListItem, SortBy, SortOrder } from './types.ts';
+import type { ListOptions, ProjectGroup, SessionListItem, SortBy, SortOrder, TurnRow } from './types.ts';
 
 const SELECT_SESSIONS = `
   SELECT id, project_path, started_at, ended_at, turn_count, record_count,
@@ -64,6 +64,49 @@ export function listSessions(index: LensIndex, opts: ListOptions = {}): SessionL
   const items = rows.map(rowToItem);
   items.sort(comparator(opts.sortBy ?? 'date', opts.order ?? 'desc'));
   return items;
+}
+
+/** Fetch one session row by id, or null if it does not exist. */
+export function getSession(index: LensIndex, id: string): SessionListItem | null {
+  const stmt = index.db.prepare(`${SELECT_SESSIONS} WHERE id = ?`);
+  try {
+    stmt.bind([id]);
+    if (!stmt.step()) return null;
+    return rowToItem(stmt.get());
+  } finally {
+    stmt.free();
+  }
+}
+
+/**
+ * All turn rows of one session, ordered by timestamp then id. This is raw shard
+ * order — the server's session-detail assembly applies the record-tree ordering.
+ */
+export function getSessionTurns(index: LensIndex, sessionId: string): TurnRow[] {
+  const stmt = index.db.prepare(`
+    SELECT id, record_uuid, parent_id, role, type, content, tool_name, timestamp
+    FROM turns WHERE session_id = ? ORDER BY timestamp, id
+  `);
+  const rows: TurnRow[] = [];
+  try {
+    stmt.bind([sessionId]);
+    while (stmt.step()) {
+      const r = stmt.get();
+      rows.push({
+        id: String(r[0]),
+        record_uuid: String(r[1]),
+        parent_id: r[2] === null || r[2] === undefined ? null : String(r[2]),
+        role: String(r[3]) as TurnRow['role'],
+        type: String(r[4]) as TurnRow['type'],
+        content: String(r[5] ?? ''),
+        tool_name: r[6] === null || r[6] === undefined ? null : String(r[6]),
+        timestamp: String(r[7] ?? ''),
+      });
+    }
+  } finally {
+    stmt.free();
+  }
+  return rows;
 }
 
 /** List sessions grouped by project. Groups are ordered by their most-recent session. */

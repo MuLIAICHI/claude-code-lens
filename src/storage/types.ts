@@ -20,6 +20,28 @@ export interface SessionListItem {
   duration_ms: number;
 }
 
+/**
+ * One turn row as served by the detail API. Wire order = display order:
+ * parents before children, siblings by timestamp, blocks by block index.
+ */
+export interface TurnRow {
+  /** `${record_uuid}:${blockIndex}` — stable per content block. */
+  id: string;
+  record_uuid: string;
+  parent_id: string | null;
+  role: 'user' | 'assistant';
+  type: 'text' | 'thinking' | 'tool_use' | 'tool_result';
+  content: string;
+  tool_name: string | null;
+  timestamp: string;
+}
+
+/** Full payload for `GET /api/sessions/:id`. */
+export interface SessionDetail {
+  session: SessionListItem;
+  turns: TurnRow[];
+}
+
 /** Sort keys for the session list. */
 export type SortBy = 'date' | 'duration' | 'messages';
 

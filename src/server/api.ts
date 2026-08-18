@@ -6,6 +6,7 @@
 import type { ServerResponse } from 'node:http';
 import type { LensIndex } from '../storage/db.ts';
 import { listSessions, listByProject } from '../storage/queries.ts';
+import { getSessionDetail } from './session-detail.ts';
 import type { SortBy, SortOrder } from '../storage/types.ts';
 
 const SORT_KEYS: readonly SortBy[] = ['date', 'duration', 'messages'];
@@ -39,6 +40,21 @@ export function handleApi(index: LensIndex, url: URL, res: ServerResponse): bool
     const { sortBy, order, grouped } = parseListOptions(url);
     if (grouped) json(res, 200, { groups: listByProject(index, { sortBy, order }) });
     else json(res, 200, { sessions: listSessions(index, { sortBy, order }) });
+    return true;
+  }
+
+  const detailMatch = /^\/api\/sessions\/([^/]+)$/.exec(url.pathname);
+  if (detailMatch?.[1] !== undefined) {
+    let id: string;
+    try {
+      id = decodeURIComponent(detailMatch[1]);
+    } catch {
+      json(res, 404, { error: `unknown session: ${detailMatch[1]}` });
+      return true;
+    }
+    const detail = getSessionDetail(index, id);
+    if (detail === null) json(res, 404, { error: `unknown session: ${id}` });
+    else json(res, 200, detail);
     return true;
   }
 
