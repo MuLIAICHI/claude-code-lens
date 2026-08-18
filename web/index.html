@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lens for Claude Code</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Lens <span class="dim">for Claude Code</span></h1>
+      <div class="controls">
+        <label>Sort
+          <select id="sortBy">
+            <option value="date">Date</option>
+            <option value="duration">Duration</option>
+            <option value="messages">Messages</option>
+          </select>
+        </label>
+        <label>Order
+          <select id="order">
+            <option value="desc">Desc</option>
+            <option value="asc">Asc</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <main id="app"><p class="status">Loading…</p></main>
+    <footer class="foot">All local. Nothing leaves your machine.</footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

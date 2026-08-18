@@ -8,6 +8,7 @@
 import { resolveProjectsDir } from '../config.ts';
 import { runScan, formatStats } from './scan.ts';
 import { runIndexCommand } from './index-cmd.ts';
+import { runServeCommand } from './serve.ts';
 
 /** Extract `--path <value>` from argv, if present. */
 function readPathFlag(argv: string[]): string | undefined {
@@ -20,12 +21,24 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv[0];
 
-  if (command === undefined || command === 'help' || command === '--help' || command === '-h') {
+  if (command === 'help' || command === '--help' || command === '-h') {
     process.stdout.write(
       'cc-lens — Lens for Claude Code\n\nUsage:\n' +
-        '  cc-lens scan  [--path <projects-dir>]   print session stats to the terminal\n' +
-        '  cc-lens index [--path <projects-dir>]   build/update the local index (~/.claude-code-lens/index.db)\n',
+        '  cc-lens        [--path <projects-dir>]   boot the local dashboard (default)\n' +
+        '  cc-lens serve  [--path <projects-dir>]   same as above, explicit\n' +
+        '  cc-lens scan   [--path <projects-dir>]   print session stats to the terminal\n' +
+        '  cc-lens index  [--path <projects-dir>]   build/update the local index (~/.claude-code-lens/index.db)\n',
     );
+    return;
+  }
+
+  if (command === undefined || command === 'serve') {
+    try {
+      await runServeCommand(readPathFlag(argv));
+    } catch (err) {
+      process.stderr.write(`cc-lens failed to start: ${(err as Error).message}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 

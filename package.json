@@ -7,9 +7,12 @@
     "cc-lens": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
+    "dev:web": "vite",
+    "serve": "tsx src/cli/index.ts serve",
     "scan": "tsx src/cli/index.ts scan",
+    "index": "tsx src/cli/index.ts index",
     "test": "tsx --test tests/*.test.ts"
   },
   "engines": {
@@ -23,7 +26,8 @@
     "@types/node": "26.2.0",
     "@types/sql.js": "1.4.11",
     "tsx": "4.23.12",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vite": "8.2.1"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
