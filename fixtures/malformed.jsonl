@@ -1,0 +1,4 @@
+{"type":"user","sessionId":"sess-bad-1","uuid":"bad-u1","parentUuid":null,"timestamp":"2026-08-12T11:00:00.000Z","message":{"role":"user","content":"hello"}}
+{"type":"assistant","sessionId":"sess-bad-1","uuid":"bad-a1","parentUuid":"bad-u1","timestamp":"2026-08-12T11:00:01.000Z","message":{"role":"assistant","model":"claude-opus-4-8","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":5,"output_tokens":3,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}
+{ this is not valid json at all >>>
+{"type":"user","sessionId":"sess-bad-1","uuid":"bad-u2","parentUuid":"bad-a1","timestamp":"2026-08-12T11:00:02.000Z","message":{"role":"user","content":"still here"}}
