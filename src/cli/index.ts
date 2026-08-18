@@ -7,6 +7,7 @@
 
 import { resolveProjectsDir } from '../config.ts';
 import { runScan, formatStats } from './scan.ts';
+import { runIndexCommand } from './index-cmd.ts';
 
 /** Extract `--path <value>` from argv, if present. */
 function readPathFlag(argv: string[]): string | undefined {
@@ -15,12 +16,16 @@ function readPathFlag(argv: string[]): string | undefined {
   return undefined;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv[0];
 
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') {
-    process.stdout.write('cc-lens — Lens for Claude Code\n\nUsage:\n  cc-lens scan [--path <projects-dir>]\n');
+    process.stdout.write(
+      'cc-lens — Lens for Claude Code\n\nUsage:\n' +
+        '  cc-lens scan  [--path <projects-dir>]   print session stats to the terminal\n' +
+        '  cc-lens index [--path <projects-dir>]   build/update the local index (~/.claude-code-lens/index.db)\n',
+    );
     return;
   }
 
@@ -37,8 +42,18 @@ function main(): void {
     return;
   }
 
+  if (command === 'index') {
+    try {
+      await runIndexCommand(readPathFlag(argv));
+    } catch (err) {
+      process.stderr.write(`cc-lens index failed: ${(err as Error).message}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\nRun \`cc-lens help\`.\n`);
   process.exitCode = 1;
 }
 
-main();
+void main();
