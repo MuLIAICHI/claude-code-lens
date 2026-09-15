@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.svg" width="110" alt="Lens logo"/>
+</p>
+
 # Lens for Claude Code
 
 **This never leaves your machine.** Lens is a local-first viewer for your Claude

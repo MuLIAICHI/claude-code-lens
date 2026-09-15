@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#12161f"/>
+      <stop offset="1" stop-color="#0a0d12"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.12" r="0.75">
+      <stop offset="0" stop-color="#7aa2ff" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#7aa2ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  <rect x="6" y="6" width="500" height="500" rx="110" fill="none" stroke="#2a3242" stroke-width="2"/>
+  <!-- magnifier -->
+  <circle cx="236" cy="228" r="118" fill="none" stroke="#e7ebf3" stroke-width="26"/>
+  <line x1="322" y1="314" x2="398" y2="390" stroke="#e7ebf3" stroke-width="30" stroke-linecap="round"/>
+  <!-- transcript lines inside the lens: one readable, one redacted -->
+  <line x1="182" y1="204" x2="292" y2="204" stroke="#7aa2ff" stroke-width="20" stroke-linecap="round"/>
+  <line x1="182" y1="254" x2="258" y2="254" stroke="#f5b043" stroke-width="24" stroke-linecap="round"/>
+</svg>
